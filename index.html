@@ -130,7 +130,7 @@
       setView(publicView); publicView.innerHTML='<div class="card center"><p>Carregando etiqueta…</p></div>';
       try{
         const snap=await getDoc(doc(db,'items',token));
-        if(!snap.exists()||snap.data().active===false){publicView.innerHTML='<div class="card center"><h2>Esta etiqueta não está ativa</h2><p>O item pode ter sido removido ou o QR foi desativado.</p><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        if(!snap.exists()||snap.data().active===false){publicView.innerHTML='<div class="card center"><h2>Esta etiqueta não está ativa</h2><p>O item pode ter sido removido ou o QR foi desativado.</p><button class="secondary" onclick="window.location.hash=String()">Voltar</button></div>';return}
         const it=snap.data();
         publicView.innerHTML=`<button class="back" onclick="location.hash=''">← Voltar</button><div class="card center"><div style="font-size:42px">🔎</div><h2>Você encontrou ${esc(it.name||it.type||'um item')}?</h2><p>${esc(it.description||'O dono deste item pode conversar com você por aqui, sem mostrar o telefone.')}</p><div class="notice">Não compartilhe dados pessoais. Você pode combinar um local público para a devolução.</div><button id="startChat">Avisar que encontrei</button></div>`;
         $('startChat').onclick=()=>startConversation(token,it);
@@ -149,7 +149,7 @@
       setView(chatView); chatView.innerHTML='<div class="card"><p>Abrindo conversa…</p></div>';
       try{
         const ref=doc(db,'conversations',id), snap=await getDoc(ref);
-        if(!snap.exists()){chatView.innerHTML='<div class="card"><h2>Conversa não encontrada</h2><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        if(!snap.exists()){chatView.innerHTML='<div class="card"><h2>Conversa não encontrada</h2><button class="secondary" onclick="window.location.hash=String()">Voltar</button></div>';return}
         const c=snap.data(); if(c.ownerUid!==currentUser.uid&&c.finderUid!==currentUser.uid){chatView.innerHTML='<div class="card"><h2>Acesso não permitido</h2></div>';return}
         activeConversation={id,...c};
         chatView.innerHTML=`<button class="back" id="chatBack">← Voltar</button><div class="card"><div class="chat-head"><div><h2>${esc(c.itemName||'Conversa sobre item')}</h2><div class="item-meta">Chat anônimo <span class="tag">${c.status==='closed'?'Encerrado':'Ativo'}</span></div></div>${c.ownerUid===currentUser.uid&&c.status!=='closed'?'<button id="closeChat" class="danger small">Encerrar</button>':''}</div><div id="messages" class="messages"><div class="empty">Carregando mensagens…</div></div>${c.status==='closed'?'<div class="notice">Esta conversa foi encerrada pelo dono do item.</div>':`<form id="sendForm" class="composer"><input id="messageInput" maxlength="1000" autocomplete="off" placeholder="Escreva uma mensagem…" required><button type="submit">Enviar</button></form><div class="chat-footer"><button id="shareLocation" class="secondary small">Compartilhar localização</button></div><div class="locline">A localização só será compartilhada se você tocar no botão e autorizar o navegador.</div>`}</div>`;
@@ -180,7 +180,7 @@
       if(!currentUser)return;
       setView(qrView);qrView.innerHTML='<div class="card center"><p>Preparando QR code…</p></div>';
       try{
-        const snap=await getDoc(doc(db,'items',token));if(!snap.exists()||snap.data().ownerUid!==currentUser.uid){qrView.innerHTML='<div class="card"><h2>Etiqueta não encontrada</h2><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        const snap=await getDoc(doc(db,'items',token));if(!snap.exists()||snap.data().ownerUid!==currentUser.uid){qrView.innerHTML='<div class="card"><h2>Etiqueta não encontrada</h2><button class="secondary" onclick="window.location.hash=String()">Voltar</button></div>';return}
         const it=snap.data(), url=location.origin+location.pathname+'#item='+encodeURIComponent(token);
         qrView.innerHTML=`<button class="back" onclick="location.hash=''">← Voltar aos meus itens</button><div class="card center"><h2>QR code da etiqueta</h2><p>${esc(it.name||it.type)}</p><div id="qrTarget" class="qrbox"></div><div><button id="downloadQr">Baixar imagem do QR</button> <button id="printQr" class="secondary">Imprimir</button></div><div class="notice">Teste o QR com a câmera do celular antes de colar na etiqueta. A página precisa estar publicada em um endereço HTTPS para outras pessoas acessarem.</div><p class="item-meta">Link da etiqueta: <a href="${esc(url)}">${esc(url)}</a></p></div>`;
         new QRCode($('qrTarget'),{text:url,width:230,height:230,colorDark:'#173330',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
