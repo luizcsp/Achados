@@ -22,15 +22,18 @@
       <section id="homeView">
         <div class="hero"><h2>Se perder, fica mais fácil voltar.</h2><p>Cadastre seus objetos, imprima uma etiqueta com QR code e receba mensagens de quem encontrar — sem divulgar seu telefone.</p></div>
         <section class="card" id="ownerAccountCard" style="margin-bottom:20px">
-          <h2 id="accountTitle">Proteja o acesso aos seus itens</h2>
-          <p class="hint" id="accountHint">Crie acesso com e-mail e senha para recuperar seus itens em outro aparelho. Isso não muda o acesso anônimo de quem escaneia o QR.</p>
+          <h2 id="accountTitle">Acesso do proprietário</h2>
+          <p class="hint" id="accountHint">Crie uma conta para acessar seus itens. Novas contas aguardam a confirmação do pagamento pelo administrador. Quem encontrar um objeto continua acessando pelo QR como visitante.</p>
           <form id="ownerAuthForm">
             <div class="field"><label for="ownerEmail">E-mail</label><input id="ownerEmail" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></div>
             <div class="field"><label for="ownerPassword">Senha (mínimo 6 caracteres)</label><input id="ownerPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required></div>
-            <div class="actions" style="justify-content:flex-start"><button id="createOwnerAccount" type="submit">Proteger meus itens</button><button id="loginOwnerAccount" type="button" class="secondary">Já tenho conta: entrar</button></div>
+            <div class="actions" style="justify-content:flex-start"><button id="createOwnerAccount" type="submit">Criar conta / proteger acesso</button><button id="loginOwnerAccount" type="button" class="secondary">Já tenho conta: entrar</button></div>
           </form>
-          <div id="accountMessage" class="notice">A conta será vinculada à sessão atual para manter o mesmo proprietário dos itens já cadastrados.</div>
+          <div id="accountMessage" class="notice">Se esta sessão já tem itens, crie a conta aqui para vinculá-los. Contas novas ficam pendentes até a aprovação do administrador.</div>
+          <div id="pendingPanel" class="notice hidden"><strong>Cadastro recebido — aguardando aprovação.</strong><br>Você poderá cadastrar e administrar itens após o administrador validar o pagamento. O acesso público aos QR codes continua disponível.<br>Identificador da conta: <code id="accountUid"></code><br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button></div>
+          <div id="accountActivePanel" class="success hidden">Sua conta está aprovada. <button id="logoutButton" type="button" class="secondary small">Sair</button></div>
         </section>
+        <div id="ownerDashboard" class="hidden">
         <div class="grid">
           <section class="card">
             <h2>Cadastrar um item</h2>
@@ -53,6 +56,7 @@
           <h2>Conversas recebidas</h2><p class="hint">As mensagens de quem escanear suas etiquetas aparecem aqui.</p>
           <div id="conversationList" class="items"><div class="empty">Carregando conversas…</div></div>
         </section>
+        </div><!-- ownerDashboard -->
       </section>
 
       <section id="publicView" class="view hidden"></section>
@@ -79,7 +83,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" referrerpolicy="no-referrer"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-    import { getAuth, signInAnonymously, onAuthStateChanged, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
     import { getFirestore, collection, doc, addDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
     // Configuração do app Firebase informado pelo Luiz.
@@ -97,7 +101,7 @@
     const db = getFirestore(app);
     const $ = (id) => document.getElementById(id);
     const homeView = $('homeView'), publicView = $('publicView'), chatView = $('chatView'), qrView = $('qrView');
-    let currentUser = null, unsubItems = null, unsubConversations = null, unsubMessages = null, activeConversation = null;
+    let currentUser = null, currentProfile = null, unsubProfile = null, unsubItems = null, unsubConversations = null, unsubMessages = null, activeConversation = null;
     const esc = (value='') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const makeToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,'0')).join('');
     const setView = (view) => { [homeView,publicView,chatView,qrView].forEach(v=>v.classList.add('hidden')); view.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); };
@@ -118,6 +122,8 @@
     let anonymousLoginStarted = false;
     onAuthStateChanged(auth, async user => {
       if (!user) {
+        currentUser = null;
+        if (unsubProfile) { unsubProfile(); unsubProfile = null; }
         if (!anonymousLoginStarted) {
           anonymousLoginStarted = true;
           signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
@@ -125,42 +131,76 @@
         return;
       }
       currentUser = user;
-      const isOwnerAccount = !user.isAnonymous;
-      $('authStatus').textContent = isOwnerAccount ? 'Conta protegida' : 'Conectado anonimamente';
-      $('accountTitle').textContent = isOwnerAccount ? 'Conta do proprietário protegida' : 'Proteja o acesso aos seus itens';
-      $('accountHint').textContent = isOwnerAccount
-        ? `Sessão iniciada como ${user.email||'conta protegida'}. Seus itens e conversas ficam associados a esta conta.`
-        : 'Crie acesso com e-mail e senha para recuperar seus itens em outro aparelho. Isso não muda o acesso anônimo de quem escaneia o QR.';
-      $('ownerAuthForm').classList.toggle('hidden',isOwnerAccount);
-      $('accountMessage').classList.toggle('hidden',isOwnerAccount);
-      if(isOwnerAccount) $('accountMessage').textContent='Conta protegida. Entre com esse mesmo e-mail e senha em outro aparelho para acessar seus itens.';
-      startDashboard();
+      const isAnonymous = user.isAnonymous;
+      $('authStatus').textContent = isAnonymous ? 'Visitante anônimo' : 'Verificando aprovação…';
+      $('accountTitle').textContent = isAnonymous ? 'Acesso do proprietário' : 'Verificando sua conta';
+      $('accountHint').textContent = isAnonymous
+        ? 'Cadastre-se para administrar itens. Novas contas aguardam confirmação do pagamento. Quem escaneia o QR continua acessando como visitante.'
+        : `Conta: ${user.email||'e-mail não disponível'}`;
+      $('ownerAuthForm').classList.toggle('hidden',!isAnonymous);
+      $('accountMessage').classList.toggle('hidden',!isAnonymous);
+      $('pendingPanel').classList.remove('hidden');
+      $('pendingPanel').textContent='Verificando sua aprovação…';
+      $('accountActivePanel').classList.add('hidden');
+      $('ownerDashboard').classList.add('hidden');
+      if (unsubProfile) { unsubProfile(); unsubProfile = null; }
+      if (isAnonymous) {
+        if(unsubItems){unsubItems();unsubItems=null;} if(unsubConversations){unsubConversations();unsubConversations=null;}
+        $('authStatus').textContent='Visitante anônimo';
+        await route();
+        return;
+      }
+      unsubProfile=onSnapshot(doc(db,'users',user.uid),profileSnap=>{
+        if(!profileSnap.exists()){
+          setDoc(doc(db,'users',user.uid),{email:user.email||'',accessStatus:'pending',createdAt:serverTimestamp()}).catch(err=>console.error('Não foi possível criar perfil pendente:',err));
+          return;
+        }
+        currentProfile=profileSnap.data();
+        const status=currentProfile?.accessStatus||'pending';
+        $('accountTitle').textContent=status==='active'?'Conta aprovada':status==='suspended'?'Acesso suspenso':'Aguardando aprovação';
+        $('accountHint').textContent=`Conta: ${user.email||'e-mail não disponível'} · ${status==='active'?'Acesso liberado':status==='suspended'?'Fale com o administrador':'pagamento ainda não validado'}`;
+        $('authStatus').textContent=status==='active'?'Acesso aprovado':status==='suspended'?'Acesso suspenso':'Aguardando aprovação';
+        $('accountActivePanel').classList.toggle('hidden',status!=='active');
+        $('pendingPanel').classList.toggle('hidden',status==='active');
+        $('pendingPanel').innerHTML=status==='suspended'?'<strong>Acesso suspenso.</strong><br>Entre em contato com o administrador para verificar sua conta.<br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button>':`<strong>${profileSnap.exists()?'Cadastro recebido':'Conta aguardando liberação'} — aguardando aprovação.</strong><br>O painel e as operações de proprietário ficam bloqueados até a confirmação do pagamento pelo administrador. QR codes já emitidos continuam acessíveis a quem os escanear.<br>Identificador da conta: <code>${esc(user.uid)}</code><br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button>`;
+        const pendingLogout=$('pendingLogoutButton'); if(pendingLogout) pendingLogout.onclick=async()=>{try{await signOut(auth)}catch(err){alert('Não foi possível sair: '+err.message)}};
+        $('ownerDashboard').classList.toggle('hidden',status!=='active');
+        if(status==='active') startDashboard();
+        else { if(unsubItems){unsubItems();unsubItems=null;} if(unsubConversations){unsubConversations();unsubConversations=null;} }
+      },err=>{ $('authStatus').textContent='Erro ao verificar aprovação'; $('pendingPanel').classList.remove('hidden'); $('pendingPanel').textContent='Não foi possível consultar o estado da conta: '+err.message; });
       await route();
     });
-    if (!auth.currentUser) signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
-
     $('ownerAuthForm').addEventListener('submit',async e=>{
       e.preventDefault();
-      if(!currentUser){$('accountMessage').textContent='Aguarde a conexão com o Firebase e tente novamente.';return}
-      if(!currentUser.isAnonymous){$('accountMessage').textContent='Esta sessão já está vinculada a uma conta.';return}
       const email=$('ownerEmail').value.trim();
       const password=$('ownerPassword').value;
-      const btn=$('createOwnerAccount'); btn.disabled=true; btn.textContent='Protegendo…';
+      const btn=$('createOwnerAccount'); btn.disabled=true; btn.textContent='Criando conta…';
       try{
-        const credential=EmailAuthProvider.credential(email,password);
-        await linkWithCredential(currentUser,credential);
+        let user;
+        if(currentUser?.isAnonymous){
+          // Vincula o login à sessão anônima atual, preservando UID e itens existentes.
+          const credential=EmailAuthProvider.credential(email,password);
+          const result=await linkWithCredential(currentUser,credential);
+          user=result.user;
+        }else{
+          const result=await createUserWithEmailAndPassword(auth,email,password);
+          user=result.user;
+        }
+        const profileRef=doc(db,'users',user.uid);
+        const profileSnap=await getDoc(profileRef);
+        if(!profileSnap.exists()) await setDoc(profileRef,{email:user.email||email,accessStatus:'pending',createdAt:serverTimestamp()});
         $('ownerPassword').value='';
         $('accountMessage').className='success';
-        $('accountMessage').textContent='Conta criada e vinculada. Seus itens e conversas atuais foram preservados.';
+        $('accountMessage').textContent='Conta criada. O acesso ao painel ficará liberado depois que o administrador confirmar o pagamento.';
       }catch(err){
         const msgs={
-          'auth/email-already-in-use':'Esse e-mail já tem uma conta. Use “Já tenho conta: entrar”. Essa conta não será mesclada automaticamente com os itens desta sessão anônima.',
+          'auth/email-already-in-use':'Esse e-mail já tem uma conta. Use “Já tenho conta: entrar”. Uma conta existente não é mesclada automaticamente com os itens desta sessão anônima.',
           'auth/weak-password':'A senha precisa ter pelo menos 6 caracteres.',
           'auth/invalid-email':'Confira o formato do e-mail.',
-          'auth/credential-already-in-use':'Essa credencial já está vinculada a outra conta. Entre com a conta existente; os dados anônimos não serão mesclados automaticamente.'
+          'auth/credential-already-in-use':'Essa credencial já está vinculada a outra conta. Entre com a conta existente; dados de sessões diferentes não são mesclados automaticamente.'
         };
-        $('accountMessage').className='error'; $('accountMessage').textContent=msgs[err.code]||('Não foi possível proteger a conta: '+err.message);
-      }finally{btn.disabled=false;btn.textContent='Proteger meus itens'}
+        $('accountMessage').className='error'; $('accountMessage').textContent=msgs[err.code]||('Não foi possível criar a conta: '+err.message);
+      }finally{btn.disabled=false;btn.textContent='Criar conta / proteger acesso'}
     });
     $('loginOwnerAccount').addEventListener('click',async()=>{
       const email=$('ownerEmail').value.trim(), password=$('ownerPassword').value;
@@ -169,12 +209,14 @@
       try{
         await signInWithEmailAndPassword(auth,email,password);
         $('ownerPassword').value='';
-        $('accountMessage').className='success';$('accountMessage').textContent='Login realizado. Seus itens vinculados a essa conta estão carregando.';
       }catch(err){
         const msgs={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/user-not-found':'Não encontrei uma conta com esse e-mail.','auth/too-many-requests':'Muitas tentativas. Aguarde um pouco e tente novamente.','auth/invalid-email':'Confira o formato do e-mail.'};
         $('accountMessage').className='error';$('accountMessage').textContent=msgs[err.code]||('Não foi possível entrar: '+err.message);
       }finally{btn.disabled=false;btn.textContent='Já tenho conta: entrar'}
     });
+    const logout=async()=>{try{await signOut(auth)}catch(err){alert('Não foi possível sair: '+err.message)}};
+    $('logoutButton').addEventListener('click',logout);
+    $('pendingLogoutButton').addEventListener('click',logout);
 
     function showFatal(message){homeView.insertAdjacentHTML('afterbegin',`<div class="error">${esc(message)}</div>`)}
     function startDashboard(){
@@ -271,38 +313,56 @@
     }
   </script>
   <!--
-    REGRAS DO FIRESTORE — configure no Firebase Console > Firestore Database > Regras.
-    Não publique com regras abertas. Regras base para este protótipo (revise antes de produção):
+    REGRAS DO FIRESTORE — substitua as regras em Firebase Console > Firestore Database > Regras.
+    Este conjunto implementa aprovação manual básica. Revise/teste antes de uso comercial.
 
     rules_version = '2';
     service cloud.firestore {
       match /databases/{database}/documents {
         function signedIn() { return request.auth != null; }
+        function profile(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+        function approved(uid) { return signedIn() && profile(uid).accessStatus == 'active'; }
         function item(itemId) { return get(/databases/$(database)/documents/items/$(itemId)).data; }
+        function conversation(convId) { return get(/databases/$(database)/documents/conversations/$(convId)).data; }
         function member(convId) {
-          let c = get(/databases/$(database)/documents/conversations/$(convId)).data;
-          return signedIn() && (request.auth.uid == c.ownerUid || request.auth.uid == c.finderUid);
+          let c = conversation(convId);
+          return signedIn() && (request.auth.uid == c.finderUid || (request.auth.uid == c.ownerUid && approved(request.auth.uid)));
+        }
+        match /users/{uid} {
+          allow read: if signedIn() && request.auth.uid == uid;
+          allow create: if signedIn() && request.auth.uid == uid
+            && request.resource.data.accessStatus == 'pending'
+            && request.resource.data.keys().hasOnly(['email','accessStatus','createdAt']);
+          // Clientes não podem aprovar a si mesmos; administrador altera pelo Console/backend confiável.
+          allow update, delete: if false;
         }
         match /items/{itemId} {
+          // Visitantes precisam ler os dados públicos mínimos para o QR funcionar. Não grave dados privados aqui.
           allow read: if signedIn();
-          allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid
+          allow create: if approved(request.auth.uid) && request.resource.data.ownerUid == request.auth.uid
             && request.resource.data.keys().hasOnly(['ownerUid','type','name','description','active','createdAt']);
-          allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+          allow update, delete: if approved(request.auth.uid) && resource.data.ownerUid == request.auth.uid;
         }
         match /conversations/{convId} {
-          allow read: if signedIn() && (request.auth.uid == resource.data.ownerUid || request.auth.uid == resource.data.finderUid);
+          allow read: if signedIn() && (request.auth.uid == resource.data.finderUid || (request.auth.uid == resource.data.ownerUid && approved(request.auth.uid)));
           allow create: if signedIn()
             && request.resource.data.finderUid == request.auth.uid
             && request.resource.data.ownerUid == item(request.resource.data.itemId).ownerUid
-            && request.resource.data.status == 'open';
+            && item(request.resource.data.itemId).active == true
+            && approved(item(request.resource.data.itemId).ownerUid)
+            && request.resource.data.status == 'open'
+            && request.resource.data.keys().hasOnly(['itemId','ownerUid','finderUid','itemName','status','createdAt','updatedAt']);
           allow update: if signedIn() && (
-            (member(convId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])) ||
-            (request.auth.uid == resource.data.ownerUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt']))
+            (member(convId) && resource.data.status == 'open' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])) ||
+            (request.auth.uid == resource.data.ownerUid && approved(request.auth.uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt']))
           );
           allow delete: if false;
           match /messages/{messageId} {
             allow read: if member(convId);
-            allow create: if member(convId) && request.resource.data.senderUid == request.auth.uid
+            allow create: if member(convId) && conversation(convId).status == 'open'
+              && request.resource.data.senderUid == request.auth.uid
+              && request.resource.data.text is string
+              && request.resource.data.text.size() <= 1000
               && request.resource.data.keys().hasOnly(['senderUid','text','location','createdAt']);
             allow update, delete: if false;
           }
@@ -310,7 +370,7 @@
       }
     }
 
-    Importante: a regra allow read em items revela apenas os campos armazenados no documento do item para usuários autenticados; por isso não guarde dados privados ali. Em produção, recomendamos Cloud Functions, validação mais estrita dos campos, proteção anti-spam e conta recuperável do proprietário.
+    IMPORTANTE: documentos existentes em users/{uid} precisam ter accessStatus='active' para o dono administrar itens. No Console, crie/edite o documento com o UID em Authentication > Users, e defina accessStatus como active para o administrador/cliente aprovado. A alteração manual no Console usa privilégios administrativos e não é permitida pelo app do cliente. Regras precisam ser testadas antes de produção; a leitura pública autenticada de items expõe todos os campos desses documentos, então mantenha ali apenas informações públicas do item.
   -->
 </body>
 </html>
