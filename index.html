@@ -48,6 +48,20 @@
       <section id="publicView" class="view hidden"></section>
       <section id="chatView" class="view hidden"></section>
       <section id="qrView" class="view hidden"></section>
+      <script>
+        // Executa imediatamente (antes de carregar Firebase) para links de QR não exibirem a home.
+        (() => {
+          const params = new URLSearchParams(location.hash.slice(1));
+          const route = params.has('item') ? ['publicView', 'Preparando o contato seguro…']
+            : params.has('chat') ? ['chatView', 'Abrindo conversa…']
+            : params.has('qr') ? ['qrView', 'Carregando etiqueta…'] : null;
+          if (!route) return;
+          document.getElementById('homeView').classList.add('hidden');
+          const target = document.getElementById(route[0]);
+          target.classList.remove('hidden');
+          target.innerHTML = `<div class="card center"><p>${route[1]}</p></div>`;
+        })();
+      </script>
     </main>
     <p class="footer">Protótipo: use somente com as regras do Firestore configuradas. O login anônimo pode não ser recuperável ao trocar de aparelho ou limpar os dados do navegador.</p>
   </div>
