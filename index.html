@@ -21,6 +21,16 @@
     <main id="app">
       <section id="homeView">
         <div class="hero"><h2>Se perder, fica mais fácil voltar.</h2><p>Cadastre seus objetos, imprima uma etiqueta com QR code e receba mensagens de quem encontrar — sem divulgar seu telefone.</p></div>
+        <section class="card" id="ownerAccountCard" style="margin-bottom:20px">
+          <h2 id="accountTitle">Proteja o acesso aos seus itens</h2>
+          <p class="hint" id="accountHint">Crie acesso com e-mail e senha para recuperar seus itens em outro aparelho. Isso não muda o acesso anônimo de quem escaneia o QR.</p>
+          <form id="ownerAuthForm">
+            <div class="field"><label for="ownerEmail">E-mail</label><input id="ownerEmail" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></div>
+            <div class="field"><label for="ownerPassword">Senha (mínimo 6 caracteres)</label><input id="ownerPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required></div>
+            <div class="actions" style="justify-content:flex-start"><button id="createOwnerAccount" type="submit">Proteger meus itens</button><button id="loginOwnerAccount" type="button" class="secondary">Já tenho conta: entrar</button></div>
+          </form>
+          <div id="accountMessage" class="notice">A conta será vinculada à sessão atual para manter o mesmo proprietário dos itens já cadastrados.</div>
+        </section>
         <div class="grid">
           <section class="card">
             <h2>Cadastrar um item</h2>
@@ -69,7 +79,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" referrerpolicy="no-referrer"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
     import { getFirestore, collection, doc, addDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
     // Configuração do app Firebase informado pelo Luiz.
@@ -105,14 +115,66 @@
     };
     window.addEventListener('hashchange', route);
 
+    let anonymousLoginStarted = false;
     onAuthStateChanged(auth, async user => {
-      if (!user) return;
+      if (!user) {
+        if (!anonymousLoginStarted) {
+          anonymousLoginStarted = true;
+          signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
+        }
+        return;
+      }
       currentUser = user;
-      $('authStatus').textContent = 'Conectado anonimamente';
+      const isOwnerAccount = !user.isAnonymous;
+      $('authStatus').textContent = isOwnerAccount ? 'Conta protegida' : 'Conectado anonimamente';
+      $('accountTitle').textContent = isOwnerAccount ? 'Conta do proprietário protegida' : 'Proteja o acesso aos seus itens';
+      $('accountHint').textContent = isOwnerAccount
+        ? `Sessão iniciada como ${user.email||'conta protegida'}. Seus itens e conversas ficam associados a esta conta.`
+        : 'Crie acesso com e-mail e senha para recuperar seus itens em outro aparelho. Isso não muda o acesso anônimo de quem escaneia o QR.';
+      $('ownerAuthForm').classList.toggle('hidden',isOwnerAccount);
+      $('accountMessage').classList.toggle('hidden',isOwnerAccount);
+      if(isOwnerAccount) $('accountMessage').textContent='Conta protegida. Entre com esse mesmo e-mail e senha em outro aparelho para acessar seus itens.';
       startDashboard();
       await route();
     });
-    signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
+    if (!auth.currentUser) signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
+
+    $('ownerAuthForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      if(!currentUser){$('accountMessage').textContent='Aguarde a conexão com o Firebase e tente novamente.';return}
+      if(!currentUser.isAnonymous){$('accountMessage').textContent='Esta sessão já está vinculada a uma conta.';return}
+      const email=$('ownerEmail').value.trim();
+      const password=$('ownerPassword').value;
+      const btn=$('createOwnerAccount'); btn.disabled=true; btn.textContent='Protegendo…';
+      try{
+        const credential=EmailAuthProvider.credential(email,password);
+        await linkWithCredential(currentUser,credential);
+        $('ownerPassword').value='';
+        $('accountMessage').className='success';
+        $('accountMessage').textContent='Conta criada e vinculada. Seus itens e conversas atuais foram preservados.';
+      }catch(err){
+        const msgs={
+          'auth/email-already-in-use':'Esse e-mail já tem uma conta. Use “Já tenho conta: entrar”. Essa conta não será mesclada automaticamente com os itens desta sessão anônima.',
+          'auth/weak-password':'A senha precisa ter pelo menos 6 caracteres.',
+          'auth/invalid-email':'Confira o formato do e-mail.',
+          'auth/credential-already-in-use':'Essa credencial já está vinculada a outra conta. Entre com a conta existente; os dados anônimos não serão mesclados automaticamente.'
+        };
+        $('accountMessage').className='error'; $('accountMessage').textContent=msgs[err.code]||('Não foi possível proteger a conta: '+err.message);
+      }finally{btn.disabled=false;btn.textContent='Proteger meus itens'}
+    });
+    $('loginOwnerAccount').addEventListener('click',async()=>{
+      const email=$('ownerEmail').value.trim(), password=$('ownerPassword').value;
+      if(!email||!password){$('accountMessage').className='error';$('accountMessage').textContent='Informe seu e-mail e senha para entrar.';return}
+      const btn=$('loginOwnerAccount');btn.disabled=true;btn.textContent='Entrando…';
+      try{
+        await signInWithEmailAndPassword(auth,email,password);
+        $('ownerPassword').value='';
+        $('accountMessage').className='success';$('accountMessage').textContent='Login realizado. Seus itens vinculados a essa conta estão carregando.';
+      }catch(err){
+        const msgs={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/user-not-found':'Não encontrei uma conta com esse e-mail.','auth/too-many-requests':'Muitas tentativas. Aguarde um pouco e tente novamente.','auth/invalid-email':'Confira o formato do e-mail.'};
+        $('accountMessage').className='error';$('accountMessage').textContent=msgs[err.code]||('Não foi possível entrar: '+err.message);
+      }finally{btn.disabled=false;btn.textContent='Já tenho conta: entrar'}
+    });
 
     function showFatal(message){homeView.insertAdjacentHTML('afterbegin',`<div class="error">${esc(message)}</div>`)}
     function startDashboard(){
