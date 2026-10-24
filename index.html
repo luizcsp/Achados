@@ -77,6 +77,11 @@
     const esc = (value='') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const makeToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,'0')).join('');
     const setView = (view) => { [homeView,publicView,chatView,qrView].forEach(v=>v.classList.add('hidden')); view.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); };
+    // Ao abrir um QR direto, mostra o carregamento da rota do item em vez da home enquanto autentica.
+    const initialParams = new URLSearchParams(location.hash.slice(1));
+    if (initialParams.has('item')) { setView(publicView); publicView.innerHTML='<div class="card center"><p>Preparando o contato seguro…</p></div>'; }
+    else if (initialParams.has('chat')) { setView(chatView); chatView.innerHTML='<div class="card center"><p>Abrindo conversa…</p></div>'; }
+    else if (initialParams.has('qr')) { setView(qrView); qrView.innerHTML='<div class="card center"><p>Carregando etiqueta…</p></div>'; }
     const route = () => {
       const p = new URLSearchParams(location.hash.slice(1));
       if (p.has('item')) return showPublicItem(p.get('item'));
