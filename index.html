@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title>Encontrei — Achados e Perdidos</title>
+  <style>
+    :root{--bg:#f3f7f6;--card:#fff;--ink:#173330;--muted:#647773;--brand:#0f766e;--brand2:#115e59;--line:#dce8e5;--danger:#b42318;--shadow:0 12px 36px #17333012}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 16px;background:var(--brand);color:white;font-weight:700;transition:.15s}button:hover{background:var(--brand2);transform:translateY(-1px)}button:disabled{opacity:.55;cursor:not-allowed;transform:none}.secondary{background:#e7f2f0;color:var(--brand2)}.secondary:hover{background:#d8ebe7}.danger{background:#fff0ef;color:var(--danger)}.danger:hover{background:#ffe2df}.small{padding:8px 11px;font-size:13px}.wrap{max-width:1000px;margin:auto;padding:22px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}.brand{display:flex;gap:11px;align-items:center}.logo{width:44px;height:44px;border-radius:14px;background:var(--brand);color:white;display:grid;place-items:center;font-size:23px}.brand h1{font-size:19px;margin:0;letter-spacing:-.3px}.brand p{margin:1px 0 0;font-size:12px;color:var(--muted)}.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}.dot{width:8px;height:8px;border-radius:50%;background:#2fa36b}.hero{background:linear-gradient(120deg,#0f766e,#135e58);color:white;border-radius:24px;padding:27px 28px;margin-bottom:22px;box-shadow:var(--shadow)}.hero h2{margin:0 0 6px;font-size:26px;letter-spacing:-.5px}.hero p{margin:0;color:#d9f2ed;max-width:660px}.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}.card h2,.card h3{margin:0 0 12px;letter-spacing:-.25px}.card h2{font-size:19px}.card h3{font-size:16px}.hint{font-size:13px;color:var(--muted);margin:-5px 0 16px}.field{margin:0 0 13px}.field label{display:block;font-size:13px;font-weight:700;margin:0 0 6px}.field input,.field select,.field textarea,.composer input{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;color:var(--ink);outline:none}.field input:focus,.field select:focus,.field textarea:focus,.composer input:focus{border-color:var(--brand);box-shadow:0 0 0 3px #0f766e18}.field textarea{min-height:78px;resize:vertical}.notice{border-radius:12px;padding:11px 12px;background:#eef7f5;color:#355b55;font-size:12px;margin:14px 0}.items{display:grid;gap:12px}.item{border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}.item-title{font-weight:750}.item-meta{font-size:12px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.empty{padding:24px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.hidden{display:none!important}.view{max-width:690px;margin:34px auto}.center{text-align:center}.qrbox{background:white;border:1px solid var(--line);border-radius:16px;padding:15px;display:inline-block;margin:10px auto}.qrbox canvas,.qrbox img{display:block;max-width:100%}.chat-head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:13px;margin-bottom:13px}.chat-head h2{margin:0}.messages{height:360px;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:4px 2px 12px}.bubble{max-width:82%;padding:10px 13px;border-radius:15px;background:#eff4f3;align-self:flex-start;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.mine{background:#dff4ee;align-self:flex-end}.bubble small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.composer{display:flex;gap:8px}.composer input{flex:1}.chat-footer{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}.alert{padding:12px 14px;border-radius:12px;background:#fff6df;color:#76540b;font-size:13px;margin:14px 0}.error{padding:12px 14px;border-radius:12px;background:#fff0ef;color:var(--danger);font-size:13px;margin:14px 0}.success{padding:12px 14px;border-radius:12px;background:#e8f7ef;color:#20623c;font-size:13px;margin:14px 0}.footer{color:var(--muted);font-size:11px;text-align:center;margin:25px auto 0;max-width:700px}.back{background:transparent;color:var(--brand);padding:4px 0;margin-bottom:10px}.back:hover{background:transparent;text-decoration:underline;transform:none}.locline{font-size:12px;color:var(--muted);margin-top:9px}.tag{display:inline-block;border-radius:999px;padding:3px 9px;background:#e9f4f1;color:#27655d;font-size:11px;font-weight:700;margin-left:6px}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}.hero{padding:22px}.hero h2{font-size:23px}.item{align-items:flex-start;flex-direction:column}.actions{justify-content:flex-start}.top{align-items:flex-start}.status{padding-top:10px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand"><div class="logo">⌕</div><div><h1>Encontrei</h1><p>Achados e Perdidos com contato privado</p></div></div>
+      <div class="status"><span class="dot"></span><span id="authStatus">Conectando…</span></div>
+    </header>
+
+    <main id="app">
+      <section id="homeView">
+        <div class="hero"><h2>Se perder, fica mais fácil voltar.</h2><p>Cadastre seus objetos, imprima uma etiqueta com QR code e receba mensagens de quem encontrar — sem divulgar seu telefone.</p></div>
+        <div class="grid">
+          <section class="card">
+            <h2>Cadastrar um item</h2>
+            <p class="hint">Use uma descrição segura. Não coloque endereço nem telefone.</p>
+            <form id="itemForm">
+              <div class="field"><label for="itemType">Tipo de item</label><select id="itemType" required><option value="">Escolha…</option><option>Mochila</option><option>Chave</option><option>Coleira / pet</option><option>Carteira</option><option>Bagagem</option><option>Outro</option></select></div>
+              <div class="field"><label for="itemName">Nome curto da etiqueta</label><input id="itemName" maxlength="45" placeholder="Ex.: Mochila azul" required></div>
+              <div class="field"><label for="itemDescription">Descrição pública (opcional)</label><textarea id="itemDescription" maxlength="180" placeholder="Ex.: mochila azul-marinho com chaveiro amarelo"></textarea></div>
+              <button id="saveItem" type="submit">Criar etiqueta e QR</button>
+            </form>
+            <div class="notice">O QR contém apenas um código aleatório. Não imprime nem revela seus dados pessoais.</div>
+          </section>
+          <section class="card">
+            <h2>Meus itens <span id="itemCount" class="tag">0</span></h2>
+            <p class="hint">Salve ou imprima o QR e fixe-o no objeto.</p>
+            <div id="itemsList" class="items"><div class="empty">Carregando seus itens…</div></div>
+          </section>
+        </div>
+        <section class="card" style="margin-top:20px">
+          <h2>Conversas recebidas</h2><p class="hint">As mensagens de quem escanear suas etiquetas aparecem aqui.</p>
+          <div id="conversationList" class="items"><div class="empty">Carregando conversas…</div></div>
+        </section>
+      </section>
+
+      <section id="publicView" class="view hidden"></section>
+      <section id="chatView" class="view hidden"></section>
+      <section id="qrView" class="view hidden"></section>
+    </main>
+    <p class="footer">Protótipo: use somente com as regras do Firestore configuradas. O login anônimo pode não ser recuperável ao trocar de aparelho ou limpar os dados do navegador.</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" referrerpolicy="no-referrer"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+    import { getFirestore, collection, doc, addDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+    // Configuração do app Firebase informado pelo Luiz.
+    const firebaseConfig = {
+      apiKey: 'AIzaSyC7WQ3ga-rsGwb4NNGBbnlFyc9iVQqw7Nk',
+      authDomain: 'achados-e-perdidos-5ba1d.firebaseapp.com',
+      projectId: 'achados-e-perdidos-5ba1d',
+      storageBucket: 'achados-e-perdidos-5ba1d.firebasestorage.app',
+      messagingSenderId: '527787767885',
+      appId: '1:527787767885:web:bccacfd1b3ce4b41cd8404'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const $ = (id) => document.getElementById(id);
+    const homeView = $('homeView'), publicView = $('publicView'), chatView = $('chatView'), qrView = $('qrView');
+    let currentUser = null, unsubItems = null, unsubConversations = null, unsubMessages = null, activeConversation = null;
+    const esc = (value='') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const makeToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,'0')).join('');
+    const setView = (view) => { [homeView,publicView,chatView,qrView].forEach(v=>v.classList.add('hidden')); view.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); };
+    const route = () => {
+      const p = new URLSearchParams(location.hash.slice(1));
+      if (p.has('item')) return showPublicItem(p.get('item'));
+      if (p.has('chat')) return openChat(p.get('chat'));
+      if (p.has('qr')) return showQr(p.get('qr'));
+      setView(homeView);
+    };
+    window.addEventListener('hashchange', route);
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return;
+      currentUser = user;
+      $('authStatus').textContent = 'Conectado anonimamente';
+      startDashboard();
+      await route();
+    });
+    signInAnonymously(auth).catch(err => showFatal('Não foi possível entrar no Firebase. Confira se o login anônimo está ativado e se o domínio está autorizado. Detalhe: '+err.message));
+
+    function showFatal(message){homeView.insertAdjacentHTML('afterbegin',`<div class="error">${esc(message)}</div>`)}
+    function startDashboard(){
+      if(unsubItems) unsubItems(); if(unsubConversations) unsubConversations();
+      const iq=query(collection(db,'items'),where('ownerUid','==',currentUser.uid));
+      unsubItems=onSnapshot(iq,snap=>renderItems(snap.docs.map(d=>({id:d.id,...d.data()}))),err=>showFatal('Erro ao carregar itens: '+err.message));
+      const cq=query(collection(db,'conversations'),where('ownerUid','==',currentUser.uid));
+      unsubConversations=onSnapshot(cq,snap=>renderConversations(snap.docs.map(d=>({id:d.id,...d.data()}))),err=>console.error(err));
+    }
+    $('itemForm').addEventListener('submit',async e=>{
+      e.preventDefault(); if(!currentUser)return;
+      const btn=$('saveItem'); btn.disabled=true; btn.textContent='Criando…';
+      try{
+        const token=makeToken();
+        await setDoc(doc(db,'items',token),{ownerUid:currentUser.uid,type:$('itemType').value,name:$('itemName').value.trim(),description:$('itemDescription').value.trim(),active:true,createdAt:serverTimestamp()});
+        $('itemForm').reset(); location.hash='qr='+token;
+      }catch(err){alert('Não consegui salvar o item: '+err.message)}finally{btn.disabled=false;btn.textContent='Criar etiqueta e QR'}
+    });
+    function renderItems(items){
+      $('itemCount').textContent=items.length;
+      if(!items.length){$('itemsList').innerHTML='<div class="empty">Você ainda não cadastrou nenhum item.</div>';return}
+      $('itemsList').innerHTML=items.map(it=>`<article class="item"><div><div class="item-title">${esc(it.name||it.type)}${it.active===false?'<span class="tag">Desativado</span>':''}</div><div class="item-meta">${esc(it.type||'Item')} · código ${esc(it.id.slice(0,8))}…</div></div><div class="actions"><button class="secondary small" data-qr="${esc(it.id)}">Ver QR</button><button class="${it.active===false?'secondary':'danger'} small" data-toggle="${esc(it.id)}" data-active="${it.active!==false}">${it.active===false?'Reativar':'Desativar'}</button></div></article>`).join('');
+      document.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>location.hash='qr='+b.dataset.qr);
+      document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{try{await updateDoc(doc(db,'items',b.dataset.toggle),{active:b.dataset.active!=='true'})}catch(e){alert('Não foi possível atualizar: '+e.message)}});
+    }
+    function renderConversations(convs){
+      convs.sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
+      if(!convs.length){$('conversationList').innerHTML='<div class="empty">Ainda não há mensagens. Quando alguém escanear um QR e iniciar um chat, ele aparecerá aqui.</div>';return}
+      $('conversationList').innerHTML=convs.map(c=>`<article class="item"><div><div class="item-title">${esc(c.itemName||'Item encontrado')}${c.status==='closed'?'<span class="tag">Encerrada</span>':''}</div><div class="item-meta">Conversa anônima · ${c.status==='closed'?'encerrada':'aberta'}</div></div><button class="secondary small" data-open-chat="${esc(c.id)}">Abrir conversa</button></article>`).join('');
+      document.querySelectorAll('[data-open-chat]').forEach(b=>b.onclick=()=>location.hash='chat='+b.dataset.openChat);
+    }
+    async function showPublicItem(token){
+      if(!currentUser)return;
+      setView(publicView); publicView.innerHTML='<div class="card center"><p>Carregando etiqueta…</p></div>';
+      try{
+        const snap=await getDoc(doc(db,'items',token));
+        if(!snap.exists()||snap.data().active===false){publicView.innerHTML='<div class="card center"><h2>Esta etiqueta não está ativa</h2><p>O item pode ter sido removido ou o QR foi desativado.</p><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        const it=snap.data();
+        publicView.innerHTML=`<button class="back" onclick="location.hash=''">← Voltar</button><div class="card center"><div style="font-size:42px">🔎</div><h2>Você encontrou ${esc(it.name||it.type||'um item')}?</h2><p>${esc(it.description||'O dono deste item pode conversar com você por aqui, sem mostrar o telefone.')}</p><div class="notice">Não compartilhe dados pessoais. Você pode combinar um local público para a devolução.</div><button id="startChat">Avisar que encontrei</button></div>`;
+        $('startChat').onclick=()=>startConversation(token,it);
+      }catch(err){publicView.innerHTML=`<div class="card"><h2>Não consegui abrir esta etiqueta</h2><p class="error">${esc(err.message)}</p><button class="secondary" onclick="location.hash=''">Voltar</button></div>`}
+    }
+    async function startConversation(itemId,item){
+      try{
+        const id=itemId+'_'+currentUser.uid;
+        const ref=doc(db,'conversations',id); const existing=await getDoc(ref);
+        if(!existing.exists()) await setDoc(ref,{itemId,ownerUid:item.ownerUid,finderUid:currentUser.uid,itemName:item.name||item.type||'Item',status:'open',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+        location.hash='chat='+id;
+      }catch(err){alert('Não consegui iniciar a conversa: '+err.message)}
+    }
+    async function openChat(id){
+      if(!currentUser)return;
+      setView(chatView); chatView.innerHTML='<div class="card"><p>Abrindo conversa…</p></div>';
+      try{
+        const ref=doc(db,'conversations',id), snap=await getDoc(ref);
+        if(!snap.exists()){chatView.innerHTML='<div class="card"><h2>Conversa não encontrada</h2><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        const c=snap.data(); if(c.ownerUid!==currentUser.uid&&c.finderUid!==currentUser.uid){chatView.innerHTML='<div class="card"><h2>Acesso não permitido</h2></div>';return}
+        activeConversation={id,...c};
+        chatView.innerHTML=`<button class="back" id="chatBack">← Voltar</button><div class="card"><div class="chat-head"><div><h2>${esc(c.itemName||'Conversa sobre item')}</h2><div class="item-meta">Chat anônimo <span class="tag">${c.status==='closed'?'Encerrado':'Ativo'}</span></div></div>${c.ownerUid===currentUser.uid&&c.status!=='closed'?'<button id="closeChat" class="danger small">Encerrar</button>':''}</div><div id="messages" class="messages"><div class="empty">Carregando mensagens…</div></div>${c.status==='closed'?'<div class="notice">Esta conversa foi encerrada pelo dono do item.</div>':`<form id="sendForm" class="composer"><input id="messageInput" maxlength="1000" autocomplete="off" placeholder="Escreva uma mensagem…" required><button type="submit">Enviar</button></form><div class="chat-footer"><button id="shareLocation" class="secondary small">Compartilhar localização</button></div><div class="locline">A localização só será compartilhada se você tocar no botão e autorizar o navegador.</div>`}</div>`;
+        $('chatBack').onclick=()=>location.hash='';
+        if($('closeChat'))$('closeChat').onclick=async()=>{if(confirm('Encerrar esta conversa?')){await updateDoc(ref,{status:'closed',updatedAt:serverTimestamp()});location.hash=''}};
+        if($('sendForm'))$('sendForm').onsubmit=async e=>{e.preventDefault();await sendMessage(id,$('messageInput').value.trim());$('messageInput').value=''};
+        if($('shareLocation'))$('shareLocation').onclick=()=>shareLocation(id);
+        if(unsubMessages)unsubMessages();
+        const mq=query(collection(db,'conversations',id,'messages'),orderBy('createdAt','asc'));
+        unsubMessages=onSnapshot(mq,s=>renderMessages(s.docs.map(d=>d.data())),err=>{const m=$('messages');if(m)m.innerHTML=`<div class="error">Não foi possível carregar as mensagens: ${esc(err.message)}</div>`});
+      }catch(err){chatView.innerHTML=`<div class="card"><h2>Erro ao abrir conversa</h2><div class="error">${esc(err.message)}</div></div>`}
+    }
+    async function sendMessage(conversationId,text,locationData=null){
+      if(!text&&!locationData)return;
+      try{await addDoc(collection(db,'conversations',conversationId,'messages'),{senderUid:currentUser.uid,text:text||'',location:locationData,createdAt:serverTimestamp()});await updateDoc(doc(db,'conversations',conversationId),{updatedAt:serverTimestamp()})}
+      catch(err){alert('Mensagem não enviada: '+err.message)}
+    }
+    function renderMessages(messages){
+      const box=$('messages');if(!box)return;
+      if(!messages.length){box.innerHTML='<div class="empty">Comece a conversa para combinar a devolução.</div>';return}
+      box.innerHTML=messages.map(m=>{const mine=m.senderUid===currentUser.uid;let extra='';if(m.location&&Number.isFinite(m.location.lat)&&Number.isFinite(m.location.lng)){const url=`https://www.google.com/maps?q=${m.location.lat},${m.location.lng}`;extra=`<br><a href="${url}" target="_blank" rel="noopener">📍 Ver localização compartilhada</a>`}const date=m.createdAt?.toDate?m.createdAt.toDate().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'agora';return `<div class="bubble ${mine?'mine':''}">${esc(m.text||'')} ${extra}<small>${mine?'Você':'Participante'} · ${date}</small></div>`}).join('');box.scrollTop=box.scrollHeight;
+    }
+    function shareLocation(conversationId){
+      if(!navigator.geolocation){alert('Este navegador não oferece geolocalização.');return}
+      navigator.geolocation.getCurrentPosition(pos=>sendMessage(conversationId,'', {lat:Number(pos.coords.latitude.toFixed(5)),lng:Number(pos.coords.longitude.toFixed(5))}),err=>alert('Localização não compartilhada: '+err.message),{enableHighAccuracy:false,timeout:12000,maximumAge:60000});
+    }
+    async function showQr(token){
+      if(!currentUser)return;
+      setView(qrView);qrView.innerHTML='<div class="card center"><p>Preparando QR code…</p></div>';
+      try{
+        const snap=await getDoc(doc(db,'items',token));if(!snap.exists()||snap.data().ownerUid!==currentUser.uid){qrView.innerHTML='<div class="card"><h2>Etiqueta não encontrada</h2><button class="secondary" onclick="location.hash=''">Voltar</button></div>';return}
+        const it=snap.data(), url=location.origin+location.pathname+'#item='+encodeURIComponent(token);
+        qrView.innerHTML=`<button class="back" onclick="location.hash=''">← Voltar aos meus itens</button><div class="card center"><h2>QR code da etiqueta</h2><p>${esc(it.name||it.type)}</p><div id="qrTarget" class="qrbox"></div><div><button id="downloadQr">Baixar imagem do QR</button> <button id="printQr" class="secondary">Imprimir</button></div><div class="notice">Teste o QR com a câmera do celular antes de colar na etiqueta. A página precisa estar publicada em um endereço HTTPS para outras pessoas acessarem.</div><p class="item-meta">Link da etiqueta: <a href="${esc(url)}">${esc(url)}</a></p></div>`;
+        new QRCode($('qrTarget'),{text:url,width:230,height:230,colorDark:'#173330',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+        $('downloadQr').onclick=()=>{const c=$('qrTarget').querySelector('canvas');const img=$('qrTarget').querySelector('img');const a=document.createElement('a');a.href=c?c.toDataURL('image/png'):img.src;a.download='qr-'+token.slice(0,8)+'.png';a.click()};
+        $('printQr').onclick=()=>window.print();
+      }catch(err){qrView.innerHTML=`<div class="card"><h2>Não foi possível gerar o QR</h2><div class="error">${esc(err.message)}</div></div>`}
+    }
+  </script>
+  <!--
+    REGRAS DO FIRESTORE — configure no Firebase Console > Firestore Database > Regras.
+    Não publique com regras abertas. Regras base para este protótipo (revise antes de produção):
+
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        function signedIn() { return request.auth != null; }
+        function item(itemId) { return get(/databases/$(database)/documents/items/$(itemId)).data; }
+        function member(convId) {
+          let c = get(/databases/$(database)/documents/conversations/$(convId)).data;
+          return signedIn() && (request.auth.uid == c.ownerUid || request.auth.uid == c.finderUid);
+        }
+        match /items/{itemId} {
+          allow read: if signedIn();
+          allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['ownerUid','type','name','description','active','createdAt']);
+          allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+        }
+        match /conversations/{convId} {
+          allow read: if signedIn() && (request.auth.uid == resource.data.ownerUid || request.auth.uid == resource.data.finderUid);
+          allow create: if signedIn()
+            && request.resource.data.finderUid == request.auth.uid
+            && request.resource.data.ownerUid == item(request.resource.data.itemId).ownerUid
+            && request.resource.data.status == 'open';
+          allow update: if signedIn() && (
+            (member(convId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])) ||
+            (request.auth.uid == resource.data.ownerUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt']))
+          );
+          allow delete: if false;
+          match /messages/{messageId} {
+            allow read: if member(convId);
+            allow create: if member(convId) && request.resource.data.senderUid == request.auth.uid
+              && request.resource.data.keys().hasOnly(['senderUid','text','location','createdAt']);
+            allow update, delete: if false;
+          }
+        }
+      }
+    }
+
+    Importante: a regra allow read em items revela apenas os campos armazenados no documento do item para usuários autenticados; por isso não guarde dados privados ali. Em produção, recomendamos Cloud Functions, validação mais estrita dos campos, proteção anti-spam e conta recuperável do proprietário.
+  -->
+</body>
+</html>
