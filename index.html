@@ -138,10 +138,10 @@
     }
     async function startConversation(itemId,item){
       try{
-        const id=itemId+'_'+currentUser.uid;
-        const ref=doc(db,'conversations',id); const existing=await getDoc(ref);
-        if(!existing.exists()) await setDoc(ref,{itemId,ownerUid:item.ownerUid,finderUid:currentUser.uid,itemName:item.name||item.type||'Item',status:'open',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-        location.hash='chat='+id;
+        // Cria uma conversa nova diretamente; evita tentar ler um documento inexistente,
+        // leitura que as regras seguras do Firestore corretamente podem negar.
+        const ref=await addDoc(collection(db,'conversations'),{itemId,ownerUid:item.ownerUid,finderUid:currentUser.uid,itemName:item.name||item.type||'Item',status:'open',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+        location.hash='chat='+ref.id;
       }catch(err){alert('Não consegui iniciar a conversa: '+err.message)}
     }
     async function openChat(id){
