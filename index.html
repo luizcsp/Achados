@@ -31,7 +31,8 @@
           </form>
           <div id="accountMessage" class="notice">Se esta sessão já tem itens, crie a conta aqui para vinculá-los. Contas novas ficam pendentes até a aprovação do administrador.</div>
           <div id="pendingPanel" class="notice hidden"><strong>Cadastro recebido — aguardando aprovação.</strong><br>Você poderá cadastrar e administrar itens após o administrador validar o pagamento. O acesso público aos QR codes continua disponível.<br>Identificador da conta: <code id="accountUid"></code><br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button></div>
-          <div id="accountActivePanel" class="success hidden">Sua conta está aprovada. <button id="logoutButton" type="button" class="secondary small">Sair</button></div>
+          <div id="accountActivePanel" class="success hidden">Sua conta está aprovada.<br><span id="notificationStatus">Ative os avisos neste aparelho para receber notificações quando chegar uma mensagem.</span><br><button id="enableNotifications" type="button" class="secondary small" style="margin-top:8px">Ativar avisos neste aparelho</button> <button id="logoutButton" type="button" class="secondary small">Sair</button></div>
+          <div id="messageToast" class="notice hidden" role="status" aria-live="polite"></div>
         </section>
         <div id="ownerDashboard" class="hidden">
         <div class="grid">
@@ -85,6 +86,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
     import { getAuth, signInAnonymously, onAuthStateChanged, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
     import { getFirestore, collection, doc, addDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+    import { getMessaging, getToken, deleteToken, onMessage, isSupported } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-messaging.js';
 
     // Configuração do app Firebase informado pelo Luiz.
     const firebaseConfig = {
@@ -99,9 +101,13 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const messagingSupported = await isSupported().catch(()=>false);
+    const messaging = messagingSupported ? getMessaging(app) : null;
+    const VAPID_PUBLIC_KEY = 'BPmLQr9Ri5LEAD_uR-9WZQ0fHe721MfJpa7PmMfI1wt36-op6irzwk-th9yXrPGWUMAHri74uh5geqVSUODcTrQ';
     const $ = (id) => document.getElementById(id);
     const homeView = $('homeView'), publicView = $('publicView'), chatView = $('chatView'), qrView = $('qrView');
     let currentUser = null, currentProfile = null, unsubProfile = null, unsubItems = null, unsubConversations = null, unsubMessages = null, activeConversation = null;
+    let knownMessageIds = new Set(), messageFeedInitialized = false, notificationEnabled = false, toastTimer = null;
     const esc = (value='') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const makeToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,'0')).join('');
     const setView = (view) => { [homeView,publicView,chatView,qrView].forEach(v=>v.classList.add('hidden')); view.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); };
@@ -169,6 +175,7 @@
         $('accountHint').textContent=`Conta: ${user.email||'e-mail não disponível'} · ${status==='active'?'Acesso liberado':status==='suspended'?'Fale com o administrador':'pagamento ainda não validado'}`;
         $('authStatus').textContent=status==='active'?'Acesso aprovado':status==='suspended'?'Acesso suspenso':'Aguardando aprovação';
         $('accountActivePanel').classList.toggle('hidden',status!=='active');
+        if(status==='active') updateNotificationUI();
         $('pendingPanel').classList.toggle('hidden',status==='active');
         $('pendingPanel').innerHTML=status==='suspended'?'<strong>Acesso suspenso.</strong><br>Entre em contato com o administrador para verificar sua conta.<br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button>':`<strong>${profileSnap.exists()?'Cadastro recebido':'Conta aguardando liberação'} — aguardando aprovação.</strong><br>O painel e as operações de proprietário ficam bloqueados até a confirmação do pagamento pelo administrador. QR codes já emitidos continuam acessíveis a quem os escanear.<br>Identificador da conta: <code>${esc(user.uid)}</code><br><button id="pendingLogoutButton" type="button" class="secondary small" style="margin-top:8px">Sair da conta</button>`;
         const pendingLogout=$('pendingLogoutButton'); if(pendingLogout) pendingLogout.onclick=async()=>{try{await signOut(auth)}catch(err){alert('Não foi possível sair: '+err.message)}};
@@ -246,10 +253,103 @@
     function showFatal(message){homeView.insertAdjacentHTML('afterbegin',`<div class="error">${esc(message)}</div>`)}
     function startDashboard(){
       if(unsubItems) unsubItems(); if(unsubConversations) unsubConversations();
+      messageWatchers.forEach(stop=>stop()); messageWatchers.clear(); notifiedConversationIds.clear();
       const iq=query(collection(db,'items'),where('ownerUid','==',currentUser.uid));
       unsubItems=onSnapshot(iq,snap=>renderItems(snap.docs.map(d=>({id:d.id,...d.data()}))),err=>showFatal('Erro ao carregar itens: '+err.message));
       const cq=query(collection(db,'conversations'),where('ownerUid','==',currentUser.uid));
-      unsubConversations=onSnapshot(cq,snap=>renderConversations(snap.docs.map(d=>({id:d.id,...d.data()}))),err=>console.error(err));
+      messageFeedInitialized=false; knownMessageIds=new Set();
+      unsubConversations=onSnapshot(cq,snap=>{
+        const conversations=snap.docs.map(d=>({id:d.id,...d.data()}));
+        renderConversations(conversations);
+        watchIncomingMessages(conversations);
+      },err=>console.error(err));
+    }
+    const notifiedConversationIds=new Set();
+    function watchIncomingMessages(conversations){
+      if(!currentUser||currentUser.isAnonymous)return;
+      conversations.forEach(c=>{
+        if(c.status==='closed'||notifiedConversationIds.has(c.id))return;
+        notifiedConversationIds.add(c.id);
+        const messagesQuery=query(collection(db,'conversations',c.id,'messages'),orderBy('createdAt','asc'));
+        const stop=onSnapshot(messagesQuery,snapshot=>{
+          if(!messageFeedInitialized){snapshot.docs.forEach(d=>knownMessageIds.add(d.id));return;}
+          snapshot.docChanges().forEach(change=>{
+            if(change.type!=='added'||knownMessageIds.has(change.doc.id))return;
+            knownMessageIds.add(change.doc.id);
+            const m=change.doc.data();
+            if(m.senderUid===currentUser.uid)return;
+            alertIncomingMessage(c,m);
+          });
+        },err=>console.warn('Não foi possível acompanhar novas mensagens:',err));
+        // Guardamos o cancelamento no mapa, para encerrar os listeners ao sair da conta.
+        messageWatchers.set(c.id,stop);
+      });
+      // Aguarda o primeiro retrato de todas as conversas para não anunciar mensagens antigas.
+      setTimeout(()=>{messageFeedInitialized=true;},1200);
+    }
+    const messageWatchers=new Map();
+    function alertIncomingMessage(conversation,message){
+      const label=conversation.itemName||'seu item';
+      const text=message.text||'A pessoa que encontrou compartilhou a localização.';
+      const toast=$('messageToast');
+      toast.innerHTML=`💬 Nova mensagem sobre <strong>${esc(label)}</strong>: ${esc(text.slice(0,140))} <button class="secondary small" type="button" id="openNewMessage">Abrir chat</button>`;
+      toast.classList.remove('hidden');
+      if(toastTimer)clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>toast.classList.add('hidden'),12000);
+      $('openNewMessage').onclick=()=>location.hash='chat='+conversation.id;
+      if(notificationEnabled&&'Notification' in window&&Notification.permission==='granted'){
+        const n=new Notification('Nova mensagem — Encontrei',{body:`${label}: ${text.slice(0,100)}`,tag:'conversation-'+conversation.id});
+        n.onclick=()=>{window.focus();location.hash='chat='+conversation.id;n.close()};
+      }
+      if('vibrate' in navigator)navigator.vibrate([120,60,120]);
+    }
+    function updateNotificationUI(){
+      const button=$('enableNotifications'), status=$('notificationStatus');
+      if(!messagingSupported){button.disabled=true;status.textContent='Este navegador/aparelho não oferece suporte ao Firebase Web Push.';return}
+      if(!('Notification' in window)){button.disabled=true;status.textContent='Este navegador não oferece notificações web.';return}
+      if(Notification.permission==='granted'){
+        notificationEnabled=true;
+        button.textContent='Ativar/atualizar avisos neste aparelho';
+        status.textContent='Permissão concedida. Toque para registrar este aparelho para notificações push.';
+      }else if(Notification.permission==='denied'){
+        button.disabled=true;status.textContent='Notificações bloqueadas pelo navegador. Altere a permissão do site nas configurações do navegador.';
+      }else{
+        button.disabled=false;status.textContent='Ative os avisos neste aparelho para receber notificações de novas mensagens.';
+      }
+    }
+    $('enableNotifications').addEventListener('click',async()=>{
+      const button=$('enableNotifications'), status=$('notificationStatus');
+      if(!currentUser||currentUser.isAnonymous||currentProfile?.accessStatus!=='active'){
+        status.textContent='Entre com uma conta de proprietário aprovada antes de registrar notificações.';return;
+      }
+      if(!messagingSupported){status.textContent='Este navegador não é compatível com Firebase Web Push. Tente Chrome/Firefox em Android ou um navegador compatível.';return;}
+      if(!('serviceWorker' in navigator)||!('Notification' in window)){status.textContent='Este navegador não oferece os recursos necessários para notificações web.';return;}
+      button.disabled=true;button.textContent='Ativando…';
+      try{
+        const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+        if(permission!=='granted')throw new Error(permission==='denied'?'Permissão negada pelo navegador.':'Permissão não concedida.');
+        const registration=await navigator.serviceWorker.register('/Achados/firebase-messaging-sw.js',{scope:'/Achados/'});
+        const token=await getToken(messaging,{vapidKey:VAPID_PUBLIC_KEY,serviceWorkerRegistration:registration});
+        if(!token)throw new Error('O Firebase não retornou um token. Confira a chave VAPID e o service worker.');
+        await setDoc(doc(db,'users',currentUser.uid,'pushTokens',token),{createdAt:serverTimestamp()});
+        notificationEnabled=true;
+        status.textContent='Avisos push ativados neste aparelho. As notificações com o app fechado começarão após configurar a Cloud Function de envio.';
+        button.textContent='Avisos ativados';
+      }catch(err){
+        status.textContent='Não foi possível ativar: '+err.message;
+        button.disabled=false;button.textContent='Tentar ativar novamente';
+      }
+    });
+    updateNotificationUI();
+    if(messagingSupported){
+      onMessage(messaging,payload=>{
+        const title=payload.data?.title||'Nova mensagem — Encontrei';
+        const body=payload.data?.body||'Você recebeu uma mensagem sobre um item.';
+        if(Notification.permission==='granted'){
+          const n=new Notification(title,{body,tag:payload.data?.tag||'achados-mensagem'});
+          n.onclick=()=>{window.focus();if(payload.data?.url)location.href=payload.data.url;n.close()};
+        }
+      });
     }
     $('itemForm').addEventListener('submit',async e=>{
       e.preventDefault(); if(!currentUser)return;
