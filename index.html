@@ -152,7 +152,15 @@
       }
       unsubProfile=onSnapshot(doc(db,'users',user.uid),profileSnap=>{
         if(!profileSnap.exists()){
-          setDoc(doc(db,'users',user.uid),{email:user.email||'',accessStatus:'pending',createdAt:serverTimestamp()}).catch(err=>console.error('Não foi possível criar perfil pendente:',err));
+          currentProfile=null;
+          $('authStatus').textContent='Perfil aguardando criação';
+          $('accountTitle').textContent='Finalize seu cadastro';
+          $('accountHint').textContent='A conta de acesso existe, mas o perfil ainda não foi gravado. Saia e entre novamente ou refaça o cadastro para completar.';
+          $('pendingPanel').innerHTML='<strong>Perfil ainda não criado.</strong><br>A conta de login existe, mas falta gravar o perfil. Toque abaixo para tentar novamente.<br><button id="retryProfileButton" type="button" class="secondary small" style="margin-top:8px">Tentar criar perfil</button><br><button id="missingProfileLogout" type="button" class="secondary small" style="margin-top:8px">Sair</button>';
+          $('pendingPanel').classList.remove('hidden');
+          $('retryProfileButton').onclick=()=>createPendingProfile(user);
+          $('missingProfileLogout').onclick=async()=>{try{await signOut(auth)}catch(err){alert('Não foi possível sair: '+err.message)}};
+          $('ownerDashboard').classList.add('hidden');
           return;
         }
         currentProfile=profileSnap.data();
@@ -186,13 +194,17 @@
           const result=await createUserWithEmailAndPassword(auth,email,password);
           user=result.user;
         }
-        const profileRef=doc(db,'users',user.uid);
-        const profileSnap=await getDoc(profileRef);
-        if(!profileSnap.exists()) await setDoc(profileRef,{email:user.email||email,accessStatus:'pending',createdAt:serverTimestamp()});
+        await createPendingProfile(user);
         $('ownerPassword').value='';
         $('accountMessage').className='success';
         $('accountMessage').textContent='Conta criada. O acesso ao painel ficará liberado depois que o administrador confirmar o pagamento.';
       }catch(err){
+        if(auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.email===email){
+          // Conta de autenticação pode ter sido criada antes da falha ao salvar o perfil.
+          await createPendingProfile(auth.currentUser);
+          $('ownerPassword').value='';
+          return;
+        }
         const msgs={
           'auth/email-already-in-use':'Esse e-mail já tem uma conta. Use “Já tenho conta: entrar”. Uma conta existente não é mesclada automaticamente com os itens desta sessão anônima.',
           'auth/weak-password':'A senha precisa ter pelo menos 6 caracteres.',
@@ -202,6 +214,19 @@
         $('accountMessage').className='error'; $('accountMessage').textContent=msgs[err.code]||('Não foi possível criar a conta: '+err.message);
       }finally{btn.disabled=false;btn.textContent='Criar conta / proteger acesso'}
     });
+    async function createPendingProfile(user){
+      try{
+        const profileRef=doc(db,'users',user.uid);
+        const profileSnap=await getDoc(profileRef);
+        if(!profileSnap.exists()) await setDoc(profileRef,{email:user.email||'',accessStatus:'pending',createdAt:serverTimestamp()});
+        $('accountMessage').className='success';
+        $('accountMessage').textContent='Cadastro enviado. Aguardando aprovação do administrador.';
+      }catch(err){
+        $('accountMessage').className='error';
+        $('accountMessage').textContent='A conta de login foi criada, mas o perfil não foi salvo. Confira as regras do Firestore para users/{uid} e tente novamente. Detalhe: '+err.message;
+      }
+    }
+
     $('loginOwnerAccount').addEventListener('click',async()=>{
       const email=$('ownerEmail').value.trim(), password=$('ownerPassword').value;
       if(!email||!password){$('accountMessage').className='error';$('accountMessage').textContent='Informe seu e-mail e senha para entrar.';return}
